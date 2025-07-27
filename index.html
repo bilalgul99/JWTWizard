@@ -8,7 +8,100 @@
     <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.25/jsrsasign-all-min.js"></script>
     <style>
-        /* [Previous CSS remains exactly the same] */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px 0;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            min-height: 60px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .payload-item {
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+            align-items: center;
+        }
+        .payload-item input {
+            flex: 1;
+            padding: 8px;
+        }
+        .payload-item button {
+            width: auto;
+            background-color: #e74c3c;
+        }
+        .payload-item button:hover {
+            background-color: #c0392b;
+        }
+        .algorithm-selector {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .algorithm-selector label {
+            font-weight: bold;
+        }
+        .copy-btn {
+            background-color: #2ecc71;
+        }
+        .copy-btn:hover {
+            background-color: #27ae60;
+        }
     </style>
 </head>
 <body>
@@ -24,14 +117,17 @@
         
         <div class="section">
             <h2>Verify Token</h2>
-            <select id="verifyAlgorithm">
-                <option value="HS256">HS256</option>
-                <option value="HS384">HS384</option>
-                <option value="HS512">HS512</option>
-                <option value="RS256">RS256</option>
-            </select>
-            <textarea id="secretKey" rows="2" placeholder="Enter secret (for HMAC) or public key (for RSA)"></textarea>
-            <button onclick="verifyToken()">Verify</button>
+            <div class="algorithm-selector">
+                <label for="verifyAlgorithm">Algorithm:</label>
+                <select id="verifyAlgorithm">
+                    <option value="HS256">HS256 (HMAC-SHA256)</option>
+                    <option value="HS384">HS384 (HMAC-SHA384)</option>
+                    <option value="HS512">HS512 (HMAC-SHA512)</option>
+                    <option value="RS256">RS256 (RSA-SHA256)</option>
+                </select>
+            </div>
+            <textarea id="secretKey" rows="4" placeholder="Enter secret key (for HMAC) or public key (for RSA)"></textarea>
+            <button onclick="verifyToken()">Verify Token</button>
             <div id="verificationResult"></div>
         </div>
         
@@ -40,14 +136,19 @@
             <div id="payloadItems">
                 <!-- Payload items will be added here -->
             </div>
-            <button onclick="addPayloadItem()">Add Field</button>
-            <select id="algorithm">
-                <option value="HS256">HS256</option>
-                <option value="HS384">HS384</option>
-                <option value="HS512">HS512</option>
-                <option value="RS256">RS256</option>
-            </select>
-            <textarea id="newSecret" rows="2" placeholder="Enter secret (for HMAC) or private key (for RSA)"></textarea>
+            <button onclick="addPayloadItem()">Add New Field</button>
+            
+            <div class="algorithm-selector">
+                <label for="algorithm">Algorithm:</label>
+                <select id="algorithm">
+                    <option value="HS256">HS256 (HMAC-SHA256)</option>
+                    <option value="HS384">HS384 (HMAC-SHA384)</option>
+                    <option value="HS512">HS512 (HMAC-SHA512)</option>
+                    <option value="RS256">RS256 (RSA-SHA256)</option>
+                </select>
+            </div>
+            
+            <textarea id="newSecret" rows="4" placeholder="Enter secret (for HMAC) or private key (for RSA)"></textarea>
             <button onclick="generateToken()">Generate Token</button>
             <div id="generatedToken"></div>
         </div>
@@ -57,10 +158,10 @@
         // Initialize with example payload
         let payload = {
             id: "1066a937-0d41-481e-9f06-3c36533425fb",
-            email: "wogemid866@kloudis.com",
+            email: "user@example.com",
             userType: "DRIVER",
             iat: Math.floor(Date.now() / 1000),
-            exp: Math.floor(Date.now() / 1000) + 3600
+            exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
         };
 
         // Render payload items
@@ -75,11 +176,12 @@
                 const keyInput = document.createElement('input');
                 keyInput.type = 'text';
                 keyInput.value = key;
-                keyInput.dataset.originalKey = key;
+                keyInput.placeholder = "Claim name";
                 
                 const valueInput = document.createElement('input');
                 valueInput.type = 'text';
                 valueInput.value = typeof value === 'object' ? JSON.stringify(value) : value;
+                valueInput.placeholder = "Claim value";
                 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete';
@@ -97,7 +199,7 @@
 
         // Add new payload item
         function addPayloadItem() {
-            const newKey = `newField${Object.keys(payload).length + 1}`;
+            const newKey = `new_claim_${Object.keys(payload).length + 1}`;
             payload[newKey] = "value";
             renderPayloadItems();
         }
@@ -110,7 +212,7 @@
             try {
                 const parts = token.split('.');
                 if (parts.length !== 3) {
-                    throw new Error('Invalid JWT format');
+                    throw new Error('Invalid JWT format - must have 3 parts separated by dots');
                 }
                 
                 const header = JSON.parse(Base64.decode(parts[0]));
@@ -129,6 +231,7 @@
                     <pre>${JSON.stringify(payload, null, 2)}</pre>
                     <h3>Signature:</h3>
                     <pre>${signature}</pre>
+                    <p>Token uses algorithm: <strong>${header.alg}</strong></p>
                 `;
             } catch (error) {
                 resultDiv.innerHTML = `<p class="error">Error decoding token: ${error.message}</p>`;
@@ -162,28 +265,28 @@
                 
                 if (algorithm.startsWith('HS')) {
                     // HMAC verification
-                    const hashAlgo = algorithm === 'HS256' ? CryptoJS.SHA256 : 
-                                    algorithm === 'HS384' ? CryptoJS.SHA384 : 
-                                    CryptoJS.SHA512;
-                    
-                    expectedSignature = CryptoJS.HmacSHA256(header + '.' + payload, secret)
-                        .toString(CryptoJS.enc.Base64)
-                        .replace(/\+/g, '-')
-                        .replace(/\//g, '_')
-                        .replace(/=+$/, '');
+                    const hashAlgo = getHashAlgorithm(algorithm);
+                    const hmac = CryptoJS.HmacSHA256(header + '.' + payload, secret);
+                    expectedSignature = base64url(hmac);
                 } else if (algorithm === 'RS256') {
                     // RSA verification
+                    if (!secret) throw new Error('Public key is required for RS256 verification');
+                    
                     const pubKey = KEYUTIL.getKey(secret);
+                    if (!pubKey) throw new Error('Invalid public key format');
+                    
                     const sig = new KJUR.crypto.Signature({alg: 'SHA256withRSA'});
                     sig.init(pubKey);
                     sig.updateString(header + '.' + payload);
                     expectedSignature = sig.sign();
+                } else {
+                    throw new Error(`Unsupported algorithm: ${algorithm}`);
                 }
                 
                 if (signature === expectedSignature) {
-                    resultDiv.innerHTML = `<p class="success">Token is valid! (Algorithm: ${algorithm})</p>`;
+                    resultDiv.innerHTML = `<p class="success">✅ Token is valid! (Algorithm: ${algorithm})</p>`;
                 } else {
-                    resultDiv.innerHTML = `<p class="error">Token verification failed. Signature doesn't match.</p>`;
+                    resultDiv.innerHTML = `<p class="error">❌ Token verification failed. Signature doesn't match.</p>`;
                 }
             } catch (error) {
                 resultDiv.innerHTML = `<p class="error">Error verifying token: ${error.message}</p>`;
@@ -206,44 +309,114 @@
                     typ: "JWT"
                 };
                 
-                const encodedHeader = Base64.encode(JSON.stringify(header)).replace(/=+$/, '');
-                const encodedPayload = Base64.encode(JSON.stringify(payload)).replace(/=+$/, '');
+                const encodedHeader = base64url(JSON.stringify(header));
+                const encodedPayload = base64url(JSON.stringify(payload));
                 
                 let signature;
                 
                 if (algorithm.startsWith('HS')) {
                     // HMAC signing
-                    const hashAlgo = algorithm === 'HS256' ? CryptoJS.SHA256 : 
-                                    algorithm === 'HS384' ? CryptoJS.SHA384 : 
-                                    CryptoJS.SHA512;
+                    if (!secret) throw new Error('Secret key is required for HMAC algorithms');
+                    if (secret.length < 32 && algorithm === 'HS256') {
+                        console.warn('Warning: For HS256, recommend using secrets with at least 32 characters');
+                    }
                     
-                    signature = CryptoJS.HmacSHA256(encodedHeader + '.' + encodedPayload, secret)
-                        .toString(CryptoJS.enc.Base64)
-                        .replace(/\+/g, '-')
-                        .replace(/\//g, '_')
-                        .replace(/=+$/, '');
+                    const hashAlgo = getHashAlgorithm(algorithm);
+                    const hmac = CryptoJS.HmacSHA256(encodedHeader + '.' + encodedPayload, secret);
+                    signature = base64url(hmac);
                 } else if (algorithm === 'RS256') {
                     // RSA signing
+                    if (!secret) throw new Error('Private key is required for RS256');
+                    
                     const prvKey = KEYUTIL.getKey(secret);
+                    if (!prvKey) throw new Error('Invalid private key format');
+                    
                     const sig = new KJUR.crypto.Signature({alg: 'SHA256withRSA'});
                     sig.init(prvKey);
                     sig.updateString(encodedHeader + '.' + encodedPayload);
                     signature = hextob64u(sig.sign());
+                } else {
+                    throw new Error(`Unsupported algorithm: ${algorithm}`);
                 }
                 
                 const newToken = `${encodedHeader}.${encodedPayload}.${signature}`;
                 
                 resultDiv.innerHTML = `
                     <h3>Your new JWT token (${algorithm}):</h3>
-                    <textarea rows="3" style="width:100%">${newToken}</textarea>
-                    <button onclick="copyToClipboard('${newToken}')">Copy to Clipboard</button>
+                    <textarea id="newTokenOutput" rows="4" style="width:100%">${newToken}</textarea>
+                    <button class="copy-btn" onclick="copyToClipboard('${newToken.replace(/'/g, "\\'")}')">Copy to Clipboard</button>
+                    <p><strong>Token Details:</strong></p>
+                    <ul>
+                        <li>Algorithm: ${algorithm}</li>
+                        <li>Issued At: ${new Date(payload.iat * 1000).toISOString()}</li>
+                        ${payload.exp ? `<li>Expires: ${new Date(payload.exp * 1000).toISOString()}</li>` : ''}
+                    </ul>
                 `;
             } catch (error) {
                 resultDiv.innerHTML = `<p class="error">Error generating token: ${error.message}</p>`;
             }
         }
 
-        // [Rest of the code remains the same...]
+        // Update payload from editor inputs
+        function updatePayloadFromEditor() {
+            const items = document.querySelectorAll('.payload-item');
+            const newPayload = {};
+            
+            items.forEach(item => {
+                const keyInput = item.querySelector('input[type="text"]:first-child');
+                const valueInput = item.querySelector('input[type="text"]:nth-child(2)');
+                const key = keyInput.value.trim();
+                
+                if (!key) return; // Skip empty keys
+                
+                try {
+                    // Try to parse JSON values (for numbers, booleans, objects, arrays)
+                    newPayload[key] = JSON.parse(valueInput.value);
+                } catch {
+                    // Fall back to string if not valid JSON
+                    newPayload[key] = valueInput.value;
+                }
+            });
+            
+            payload = newPayload;
+        }
+
+        // Helper function to get CryptoJS hash algorithm
+        function getHashAlgorithm(alg) {
+            switch (alg) {
+                case 'HS256': return CryptoJS.SHA256;
+                case 'HS384': return CryptoJS.SHA384;
+                case 'HS512': return CryptoJS.SHA512;
+                default: throw new Error(`Unsupported algorithm: ${alg}`);
+            }
+        }
+
+        // Helper function for Base64Url encoding
+        function base64url(source) {
+            let encoded;
+            if (typeof source === 'string') {
+                encoded = CryptoJS.enc.Utf8.parse(source);
+            } else {
+                encoded = source;
+            }
+            
+            return encoded.toString(CryptoJS.enc.Base64)
+                .replace(/=+$/, '')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_');
+        }
+
+        // Copy text to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Token copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Initialize the app
+        renderPayloadItems();
     </script>
 </body>
 </html>
