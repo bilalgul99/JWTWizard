@@ -195,5 +195,3 @@ Key improvements in this version:
    - Covers all aspects from fundamentals to development
    - Includes security best practices
    - Provides clear usage instructions
-
-The README now provides comprehensive documentation that will help users understand both how to use the tool and the underlying JWT technology.
