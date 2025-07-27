@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Token Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/js-base64@3.7.2/base64.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px 0;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .payload-item {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .payload-item input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .payload-item button {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JWT Token Editor</h1>
+        
+        <div class="section">
+            <h2>Decode Token</h2>
+            <textarea id="jwtToken" rows="3" placeholder="Paste your JWT token here">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEwNjZhOTM3LTBkNDEtNDgxZS05ZjA2LTNjMzY1MzM0MjVmYiIsImVtYWlsIjoid29nZW1pZDg2NkBrbG91ZGlzLmNvbSIsInVzZXJUeXBlIjoiRFJJVkVSIiwiaWF0IjoxNzUzNjQzNTEyLCJleHAiOjE3NTM2NDcxMTJ9.upoPf6qUF28iCZPPfVt9hQo9BJMr2s-qMDW94r9Hfjo</textarea>
+            <button onclick="decodeToken()">Decode</button>
+            <div id="decodedResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Verify Token</h2>
+            <input type="text" id="secretKey" placeholder="Enter secret key">
+            <button onclick="verifyToken()">Verify</button>
+            <div id="verificationResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>Create Custom Token</h2>
+            <div id="payloadItems">
+                <!-- Payload items will be added here -->
+            </div>
+            <button onclick="addPayloadItem()">Add Field</button>
+            <input type="text" id="newSecret" placeholder="Enter new secret key">
+            <button onclick="generateToken()">Generate Token</button>
+            <div id="generatedToken"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize with example payload
+        let payload = {
+            id: "1066a937-0d41-481e-9f06-3c36533425fb",
+            email: "wogemid866@kloudis.com",
+            userType: "DRIVER",
+            iat: 1753643512,
+            exp: 1753647112
+        };
+
+        // Render payload items
+        function renderPayloadItems() {
+            const container = document.getElementById('payloadItems');
+            container.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(payload)) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'payload-item';
+                
+                const keyInput = document.createElement('input');
+                keyInput.type = 'text';
+                keyInput.value = key;
+                keyInput.dataset.originalKey = key;
+                
+                const valueInput = document.createElement('input');
+                valueInput.type = 'text';
+                valueInput.value = typeof value === 'object' ? JSON.stringify(value) : value;
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.onclick = () => {
+                    delete payload[key];
+                    renderPayloadItems();
+                };
+                
+                itemDiv.appendChild(keyInput);
+                itemDiv.appendChild(valueInput);
+                itemDiv.appendChild(deleteBtn);
+                container.appendChild(itemDiv);
+            }
+        }
+
+        // Add new payload item
+        function addPayloadItem() {
+            const newKey = `newField${Object.keys(payload).length + 1}`;
+            payload[newKey] = "value";
+            renderPayloadItems();
+        }
+
+        // Decode JWT token
+        function decodeToken() {
+            const token = document.getElementById('jwtToken').value.trim();
+            const resultDiv = document.getElementById('decodedResult');
+            
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    throw new Error('Invalid JWT format');
+                }
+                
+                const header = JSON.parse(Base64.decode(parts[0]));
+                const payload = JSON.parse(Base64.decode(parts[1]));
+                const signature = parts[2];
+                
+                // Update the payload editor
+                updatePayloadEditor(payload);
+                
+                resultDiv.innerHTML = `
+                    <h3>Header:</h3>
+                    <pre>${JSON.stringify(header, null, 2)}</pre>
+                    <h3>Payload:</h3>
+                    <pre>${JSON.stringify(payload, null, 2)}</pre>
+                    <h3>Signature:</h3>
+                    <pre>${signature}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error decoding token: ${error.message}</p>`;
+            }
+        }
+
+        // Update payload editor with decoded payload
+        function updatePayloadEditor(newPayload) {
+            payload = JSON.parse(JSON.stringify(newPayload));
+            renderPayloadItems();
+        }
+
+        // Verify token with secret
+        function verifyToken() {
+            const token = document.getElementById('jwtToken').value.trim();
+            const secret = document.getElementById('secretKey').value;
+            const resultDiv = document.getElementById('verificationResult');
+            
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    throw new Error('Invalid JWT format');
+                }
+                
+                const header = parts[0];
+                const payload = parts[1];
+                const signature = parts[2];
+                
+                // Calculate expected signature
+                const expectedSignature = CryptoJS.HmacSHA256(header + '.' + payload, secret)
+                    .toString(CryptoJS.enc.Base64)
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+                
+                if (signature === expectedSignature) {
+                    resultDiv.innerHTML = `<p class="success">Token is valid!</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">Token verification failed. Signature doesn't match.</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error verifying token: ${error.message}</p>`;
+            }
+        }
+
+        // Generate new token
+        function generateToken() {
+            const secret = document.getElementById('newSecret').value;
+            const resultDiv = document.getElementById('generatedToken');
+            
+            try {
+                // Update payload from editor
+                updatePayloadFromEditor();
+                
+                // Create header
+                const header = {
+                    alg: "HS256",
+                    typ: "JWT"
+                };
+                
+                const encodedHeader = Base64.encode(JSON.stringify(header)).replace(/=+$/, '');
+                const encodedPayload = Base64.encode(JSON.stringify(payload)).replace(/=+$/, '');
+                
+                // Create signature
+                const signature = CryptoJS.HmacSHA256(encodedHeader + '.' + encodedPayload, secret)
+                    .toString(CryptoJS.enc.Base64)
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+                
+                const newToken = `${encodedHeader}.${encodedPayload}.${signature}`;
+                
+                resultDiv.innerHTML = `
+                    <h3>Your new JWT token:</h3>
+                    <textarea rows="3" style="width:100%">${newToken}</textarea>
+                    <button onclick="copyToClipboard('${newToken}')">Copy to Clipboard</button>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error generating token: ${error.message}</p>`;
+            }
+        }
+
+        // Update payload from editor inputs
+        function updatePayloadFromEditor() {
+            const items = document.querySelectorAll('.payload-item');
+            const newPayload = {};
+            
+            items.forEach(item => {
+                const keyInput = item.querySelector('input[type="text"]:first-child');
+                const valueInput = item.querySelector('input[type="text"]:nth-child(2)');
+                
+                try {
+                    // Try to parse JSON values
+                    newPayload[keyInput.value] = JSON.parse(valueInput.value);
+                } catch {
+                    // Fall back to string if not valid JSON
+                    newPayload[keyInput.value] = valueInput.value;
+                }
+            });
+            
+            payload = newPayload;
+        }
+
+        // Copy text to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Token copied to clipboard!');
+            });
+        }
+
+        // Initialize the app
+        renderPayloadItems();
+    </script>
+</body>
+</html>
